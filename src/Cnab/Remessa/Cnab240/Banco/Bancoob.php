@@ -41,10 +41,18 @@ class Bancoob extends AbstractRemessa implements RemessaContract
     const PROTESTO_NEGATIVAR_DIAS_CORRIDOS = '7';
     const PROTESTO_NAO_NEGATIVAR = '8';
 
+    protected $params = [];
+
     public function __construct(array $params = [])
     {
         parent::__construct($params);
+        $this->params = $params;
         $this->addCampoObrigatorio('idremessa');
+    }
+
+    public function getParametros()
+    {
+        return $this->params;
     }
 
     /**
@@ -86,8 +94,19 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->segmentoP($boleto);
         $this->segmentoQ($boleto);
         $this->segmentoR($boleto);
+        $this->segmentoS($boleto);
 
         return $this;
+    }
+
+    public function qtdeBoletos()
+    {
+        return count($this->boletos) ?? 0;
+    }
+
+    public function getBoletos()
+    {
+        return $this->boletos;
     }
 
     /**
@@ -123,6 +142,7 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(24, 35, Util::formatCnab('9', $this->getConta(), 12));
         $this->add(36, 36, ! is_null($this->getContaDv()) ? $this->getContaDv() : CalculoDV::bancoobContaCorrente($this->getConta()));
         $this->add(37, 37, '');
+
         $this->add(38, 47, Util::formatCnab('9', $boleto->getNossoNumero(), 10));
         $this->add(48, 49, '01');   //Parcela Única
         $this->add(50, 51, '01');   //Simples Com Registro
@@ -133,7 +153,7 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(60, 60, '');
         $this->add(61, 61, '2');
         $this->add(62, 62, '2');
-        $this->add(63, 77, Util::formatCnab('9', $boleto->getNumeroDocumento(), 15));
+        $this->add(63, 77, Util::formatCnab('A', $boleto->getNumeroDocumento(), 15));
         $this->add(78, 85, $boleto->getDataVencimento()->format('dmY'));
         $this->add(86, 100, Util::formatCnab('9', $boleto->getValor(), 15, 2));
         $this->add(101, 105, '00000');
@@ -150,7 +170,7 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(166, 180, Util::formatCnab('9', 0, 15, 2));
         $this->add(181, 195, Util::formatCnab('9', 0, 15, 2));
         $this->add(196, 220, Util::formatCnab('X', $boleto->getNumeroControle(), 25));
-        $this->add(221, 221, self::PROTESTO_NAO_PROTESTAR);
+        $this->add(221, 221, ($boleto->getJuros() != null && $boleto->getJuros() > 0) ? self::PROTESTO_DIAS_UTEIS :   self::PROTESTO_NAO_PROTESTAR);
         if ($boleto->getDiasProtesto() > 0) {
             switch ($boleto->getTipoProtesto()) {
                 case 1:
@@ -256,7 +276,7 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(67, 74, $boleto->getMulta() > 0 ? $boleto->getDataVencimento()->copy()->addDays($boleto->getMultaApos())->format('dmY') : '00000000');
         $this->add(75, 89, Util::formatCnab('9', $boleto->getMulta(), 15, 2));  //2,20 = 0000000000220
         $this->add(90, 199, '');
-        $this->add(200, 207, '00000000');
+        $this->add(200, 207, $boleto->getDataLimitePagamento() != "" ? $boleto->getDataLimitePagamento()->format('dmY') : '00000000');
         $this->add(208, 210, '000');
         $this->add(211, 215, '00000');
         $this->add(216, 216, '');
@@ -264,6 +284,31 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(229, 230, '');
         $this->add(231, 231, '0');
         $this->add(232, 240, '');
+
+        return $this;
+    }
+
+
+    public function segmentoS(BoletoContract $boleto)
+    {
+        $this->iniciaDetalhe();
+        $this->add(1, 3, Util::onlyNumbers($this->getCodigoBanco()));
+        $this->add(4, 7, '0001');
+        $this->add(8, 8, '3');
+        $this->add(9, 13, Util::formatCnab('9', $this->iRegistrosLote, 5));
+        $this->add(14, 14, 'S');
+        $this->add(15, 15, '');
+        $this->add(16, 18, '013');
+        if ( count($this->params['instrucoes_cnab']) > 2){
+              throw new ValidationException('Número de instruções não pode ser maior de 2');
+        }
+
+       $this->add(19, 58, Util::formatCnab('X',
+                                            collect($this->params['instrucoes_cnab'])->first(),
+                                            40,
+                                            0,
+                                            ''));
+
 
         return $this;
     }
@@ -295,8 +340,8 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(103, 132, Util::formatCnab('X', 'SICOOB', 30));
         $this->add(133, 142, '');
         $this->add(143, 143, 1);
-        $this->add(144, 151, date('dmY'));
-        $this->add(152, 157, date('His'));
+        $this->add(144, 151, ($this->params['data_documento'] == null) ? date('dmY') : $this->params['data_documento']);
+        $this->add(152, 157, ($this->params['hora_documento'] == null) ? date('His') : $this->params['hora_documento']);
         $this->add(158, 163, Util::formatCnab('9', $this->getIdremessa(), 6));
         $this->add(164, 166, '081');
         $this->add(167, 171, '00000');
@@ -337,7 +382,7 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(74, 103, Util::formatCnab('X', $this->getBeneficiario()->getNome(), 30));
         $this->add(104, 183, '');
         $this->add(184, 191, Util::formatCnab('9', $this->getIdremessa(), 8));
-        $this->add(192, 199, $this->getDataRemessa('dmY'));
+        $this->add(192, 199, ($this->params['data_documento'] == null) ? $this->getDataRemessa('dmY') : $this->params['data_documento']) ;
         $this->add(200, 207, '00000000');
         $this->add(208, 240, '');
 
@@ -360,7 +405,8 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(4, 7, '0001');
         $this->add(8, 8, '5');
         $this->add(9, 17, '');
-        $this->add(18, 23, Util::formatCnab('9', $this->getCountDetalhes() + 2, 6));
+        $this->add(18, 23, Util::formatCnab('9', 6, 6));
+        //$this->add(18, 23, Util::formatCnab('9', $this->getCountDetalhes() + 2, 6));
         $this->add(24, 29, Util::formatCnab('9', count($this->boletos), 6));
         $this->add(30, 46, Util::formatCnab('9', $valor, 17, 2));
         $this->add(47, 52, Util::formatCnab('9', 0, 6));
@@ -384,7 +430,8 @@ class Bancoob extends AbstractRemessa implements RemessaContract
         $this->add(8, 8, '9');
         $this->add(9, 17, '');
         $this->add(18, 23, Util::formatCnab('9', 1, 6));
-        $this->add(24, 29, Util::formatCnab('9', $this->getCount(), 6));
+        $this->add(24, 29, Util::formatCnab('9', 8, 6));
+        //$this->add(24, 29, Util::formatCnab('9', $this->getCount(), 6));
         $this->add(30, 35, '000000');
         $this->add(36, 240, '');
 

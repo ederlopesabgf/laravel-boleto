@@ -508,6 +508,7 @@ final class Util
             throw new ValidationException('Tipo inválido');
         }
 
+
         // Verifica se o tipo é 'x' minúsculo e então retorna a string em minúsculas
         if ($tipo === 'Z') {
             return strtolower(sprintf("%$left$sFill$tamanho$type", mb_substr($valor, 0, $tamanho)));

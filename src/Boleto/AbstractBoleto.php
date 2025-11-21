@@ -149,6 +149,13 @@ abstract class AbstractBoleto implements BoletoContract
     public $dataDocumento;
 
     /**
+     * Data do documento
+     *
+     * @var Carbon
+     */
+    public $dataLimitePagamento;
+
+    /**
      * Data de emissão
      *
      * @var Carbon
@@ -210,6 +217,9 @@ abstract class AbstractBoleto implements BoletoContract
      * @var int
      */
     public $numeroDocumento;
+
+
+    public $data_limite_pagamento;
 
     /**
      * Define o número definido pelo cliente para compor o Nosso Número
@@ -455,6 +465,8 @@ abstract class AbstractBoleto implements BoletoContract
      */
     public function __construct($params = [])
     {
+
+
         Util::fillClass($this, $params);
         // Marca a data de emissão para hoje, caso não especificada
         if (! $this->getDataDocumento()) {
@@ -472,6 +484,7 @@ abstract class AbstractBoleto implements BoletoContract
         if (! $this->getDataDesconto()) {
             $this->setDataDesconto($this->getDataVencimento());
         }
+
     }
 
     /**
@@ -696,6 +709,7 @@ abstract class AbstractBoleto implements BoletoContract
 
         return optional(Arr::get($this->notasFiscais, $indice));
     }
+
 
     /**
      * Retorna o código do banco
@@ -949,6 +963,26 @@ abstract class AbstractBoleto implements BoletoContract
 
         return $this;
     }
+
+
+     /**
+     * Define a data do documento
+     *
+     * @param Carbon $dataDocumento
+     *
+     * @return AbstractBoleto
+     */
+    public function setDataLimitePagamento(Carbon $data_limite_pagamento)
+    {
+        return  $this->data_limite_pagamento = $data_limite_pagamento;
+    }
+
+
+    public function getDataLimitePagamento()
+    {
+        return $this->data_limite_pagamento;
+    }
+
 
     /**
      * Retorna o campo Número do documento
@@ -2294,6 +2328,7 @@ abstract class AbstractBoleto implements BoletoContract
             'data_processamento'  => $this->getDataProcessamento(),
             'data_documento'      => $this->getDataDocumento(),
             'data_desconto'       => $this->getDataDesconto(),
+            'data_limite_pagamento'=> $this->getDataLimitePagamento(),
             'valor'               => Util::nReal($this->getValor(), 2, false),
             'desconto'            => Util::nReal($this->getDesconto(), 2, false),
             'multa'               => Util::nReal($this->getMulta(), 2, false),

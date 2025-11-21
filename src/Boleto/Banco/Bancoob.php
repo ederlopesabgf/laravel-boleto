@@ -100,6 +100,13 @@ class Bancoob extends AbstractBoleto implements BoletoContract
         return $this->convenio;
     }
 
+    public function getDataLimitePagamento()
+    {
+        return $this->data_limite_pagamento;
+    }
+
+
+
     /**
      * Gera o Nosso Número.
      *
@@ -107,6 +114,7 @@ class Bancoob extends AbstractBoleto implements BoletoContract
      */
     protected function gerarNossoNumero()
     {
+
         return Util::numberFormatGeral($this->getNumero(), 7)
             . CalculoDV::bancoobNossoNumero($this->getAgencia(), $this->getConvenio(), $this->getNumero());
     }
@@ -120,6 +128,7 @@ class Bancoob extends AbstractBoleto implements BoletoContract
     {
         return substr_replace($this->getNossoNumero(), '-', -1, 0);
     }
+
 
     /**
      * Método para gerar o código da posição de 20 a 44
